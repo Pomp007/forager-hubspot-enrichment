@@ -15,6 +15,15 @@ def create_app(config_class=Config):
 
     @app.route("/", methods=["GET", "HEAD"])
     def index():
-        return {"status": "ok", "service": "forager-hubspot-enrichment"}, 200
+        return {
+            "service": "Forager x HubSpot Enrichment Automation",
+            "status": "online",
+            "version": "1.0.0",
+            "endpoints": {
+                "health": "/webhooks/health",
+                "status": "/api/status",
+                "webhook": "/webhooks/hubspot",
+            },
+        }, 200
 
     return app
