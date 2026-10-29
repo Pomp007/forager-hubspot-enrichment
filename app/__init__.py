@@ -13,4 +13,8 @@ def create_app(config_class=Config):
     app.register_blueprint(webhooks_bp, url_prefix="/webhooks")
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    @app.route("/", methods=["GET", "HEAD"])
+    def index():
+        return {"status": "ok", "service": "forager-hubspot-enrichment"}, 200
+
     return app
