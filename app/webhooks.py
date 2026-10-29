@@ -6,13 +6,12 @@ Each event contains:
   - subscriptionType: e.g. "contact.creation" or "company.creation"
   - objectId: HubSpot object ID
 
-We validate the request, dispatch to the enrichment service, and return 200
-immediately.  The enrichment runs synchronously inside the request for
-simplicity; in production you'd push to a task queue (Celery/RQ).
+We validate the request, dispatch to the enrichment service, and return 200.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import logging
@@ -28,7 +27,7 @@ webhooks_bp = Blueprint("webhooks", __name__)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Signature validation (optional but recommended)
+# Signature validation
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -37,35 +36,40 @@ def _validate_hubspot_signature(req: request) -> bool:
     Validate the HubSpot V3 webhook signature.
 
     HubSpot signs requests with:
-      HMAC-SHA256( client_secret + HTTP_METHOD + URL + request_body + timestamp )
+      base64( HMAC-SHA256( client_secret, HTTP_METHOD + URI + request_body + timestamp ) )
 
-    Returns True if the secret is not configured (skips validation) or if valid.
+    Returns True if HUBSPOT_CLIENT_SECRET is not configured (skips validation) or if valid.
     """
-    secret = current_app.config.get("WEBHOOK_SECRET") or current_app.config.get("HUBSPOT_ACCESS_TOKEN")
+    secret = current_app.config.get("HUBSPOT_CLIENT_SECRET")
     if not secret:
-        return True  # No secret configured → skip
+        # If no client secret is set, skip signature validation (convenient for testing & initial setup)
+        return True
 
     signature = req.headers.get("X-HubSpot-Signature-v3")
     timestamp = req.headers.get("X-HubSpot-Request-Timestamp")
 
     if not signature or not timestamp:
-        # Fall back to accepting unsigned (for development)
-        logger.warning("Missing HubSpot signature headers — accepting anyway")
-        return True
+        logger.warning("Missing HubSpot signature headers while HUBSPOT_CLIENT_SECRET is configured")
+        return False
 
-    # Reject stale requests (> 5 minutes)
+    # Reject requests with timestamp older than 5 minutes
     try:
-        if abs(time.time() - int(timestamp) / 1000) > 300:
+        ts_seconds = float(timestamp) / 1000.0 if len(timestamp) > 10 else float(timestamp)
+        if abs(time.time() - ts_seconds) > 300:
             logger.warning("HubSpot webhook timestamp too old")
             return False
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
     raw_body = req.get_data(as_text=True)
     message = f"{req.method}{req.url}{raw_body}{timestamp}"
-    expected = hmac.new(
-        secret.encode(), message.encode(), digestmod=hashlib.sha256
-    ).hexdigest()
+    computed_digest = hmac.new(
+        secret.encode("utf-8"),
+        message.encode("utf-8"),
+        digestmod=hashlib.sha256,
+    ).digest()
+    expected = base64.b64encode(computed_digest).decode("utf-8")
+
     return hmac.compare_digest(expected, signature)
 
 

@@ -15,6 +15,11 @@ import os
 import sys
 import json
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Load .env if present
 try:
     from dotenv import load_dotenv
@@ -23,7 +28,7 @@ except ImportError:
     pass
 
 import hubspot
-from hubspot.crm.properties import PropertyCreate, ApiException
+from hubspot.crm.properties import PropertyCreate, OptionInput, ApiException
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Property definitions
@@ -85,6 +90,14 @@ CONTACT_PROPERTIES = [
         "field_type": "text",
         "group_name": "contactinformation",
         "description": "All phone numbers from Forager (semicolon-separated)",
+    },
+    {
+        "name": "linkedin_url",
+        "label": "LinkedIn Profile URL",
+        "type": "string",
+        "field_type": "text",
+        "group_name": "contactinformation",
+        "description": "Person LinkedIn URL",
     },
     {
         "name": "forager_enriched",
@@ -153,16 +166,22 @@ def create_properties(client, object_type: str, properties: list[dict]) -> None:
     for prop in properties:
         name = prop["name"]
         try:
+            kwargs = {
+                "name": prop["name"],
+                "label": prop["label"],
+                "type": prop["type"],
+                "field_type": prop["field_type"],
+                "group_name": prop["group_name"],
+                "description": prop.get("description", ""),
+            }
+            if prop["type"] == "bool":
+                kwargs["options"] = [
+                    OptionInput(label="Yes", value="true", display_order=1),
+                    OptionInput(label="No", value="false", display_order=2),
+                ]
             client.crm.properties.core_api.create(
                 object_type=object_type,
-                property_create=PropertyCreate(
-                    name=prop["name"],
-                    label=prop["label"],
-                    type=prop["type"],
-                    field_type=prop["field_type"],
-                    group_name=prop["group_name"],
-                    description=prop.get("description", ""),
-                ),
+                property_create=PropertyCreate(**kwargs),
             )
             print(f"  ✅  Created: {name}")
         except ApiException as exc:

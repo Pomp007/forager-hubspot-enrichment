@@ -12,7 +12,7 @@ from typing import Any
 
 from flask import current_app
 
-from .forager_client import ForagerClient
+from .forager_client import ForagerClient, _clean_domain
 from .hubspot_client import HubSpotClient
 
 logger = logging.getLogger(__name__)
@@ -23,25 +23,36 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def enrich_hubspot_company(company_id: str) -> dict[str, Any]:
+def enrich_hubspot_company(company_id: str, force: bool = False) -> dict[str, Any]:
     """
     Enrich a HubSpot company record using Forager.
 
     Steps:
     1. Fetch current HubSpot company (to get domain/name).
-    2. Call Forager to get full company data.
-    3. Write enrichment back to HubSpot.
-    4. Return a summary dict.
+    2. Check if already enriched to prevent duplicate credit consumption.
+    3. Call Forager to get full company data.
+    4. Write enrichment back to HubSpot.
+    5. Return a summary dict.
     """
     hs = HubSpotClient()
-    forager = ForagerClient()
 
     logger.info("Enriching HubSpot company id=%s", company_id)
 
     # 1. Get current record
     company_record = hs.get_company(company_id)
     props = company_record.get("properties") or {}
-    domain: str = props.get("domain") or props.get("website") or ""
+
+    if not force and props.get("forager_enriched") in ("true", True, "True"):
+        logger.info("Company %s already enriched by Forager; skipping", company_id)
+        return {
+            "company_id": company_id,
+            "status": "already_enriched",
+            "message": "Company was already enriched by Forager.",
+        }
+
+    forager = ForagerClient()
+    raw_domain: str = props.get("domain") or props.get("website") or ""
+    domain = _clean_domain(raw_domain)
     name: str = props.get("name") or ""
 
     # 2. Forager lookup (prefer domain, fall back to name)
@@ -74,7 +85,7 @@ def enrich_hubspot_company(company_id: str) -> dict[str, Any]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def enrich_hubspot_contact(contact_id: str) -> dict[str, Any]:
+def enrich_hubspot_contact(contact_id: str, force: bool = False) -> dict[str, Any]:
     """
     Enrich a HubSpot contact record using Forager.
 
@@ -84,12 +95,21 @@ def enrich_hubspot_contact(contact_id: str) -> dict[str, Any]:
     3. Name + company domain.
     """
     hs = HubSpotClient()
-    forager = ForagerClient()
 
     logger.info("Enriching HubSpot contact id=%s", contact_id)
 
     contact_record = hs.get_contact(contact_id)
     props = contact_record.get("properties") or {}
+
+    if not force and props.get("forager_enriched") in ("true", True, "True"):
+        logger.info("Contact %s already enriched by Forager; skipping", contact_id)
+        return {
+            "contact_id": contact_id,
+            "status": "already_enriched",
+            "message": "Contact was already enriched by Forager.",
+        }
+
+    forager = ForagerClient()
 
     linkedin_url: str = props.get("linkedin_url") or props.get("hs_linkedin_url") or ""
     email: str = props.get("email") or ""

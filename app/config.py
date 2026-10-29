@@ -14,11 +14,12 @@ class Config:
     # ── Forager ───────────────────────────────────────────────────────────────
     FORAGER_API_KEY: str = os.environ.get("FORAGER_API_KEY", "")
     FORAGER_ACCOUNT_ID: str = os.environ.get("FORAGER_ACCOUNT_ID", "")
-    FORAGER_BASE_URL: str = "https://api-v2.forager.ai/api"
+    FORAGER_BASE_URL: str = os.environ.get("FORAGER_BASE_URL", "https://api-v2.forager.ai/api").rstrip("/")
 
     # ── HubSpot ───────────────────────────────────────────────────────────────
     HUBSPOT_ACCESS_TOKEN: str = os.environ.get("HUBSPOT_ACCESS_TOKEN", "")
     HUBSPOT_PORTAL_ID: str = os.environ.get("HUBSPOT_PORTAL_ID", "")
+    HUBSPOT_CLIENT_SECRET: str = os.environ.get("HUBSPOT_CLIENT_SECRET", "")
 
     # ── Contact-finding defaults ──────────────────────────────────────────────
     # Comma-separated list of job titles used when discovering contacts at a company.

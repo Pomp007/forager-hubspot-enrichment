@@ -64,7 +64,13 @@ cp .env.example .env
 # Edit .env with your real API keys
 ```
 
-### 4. Run locally
+### 4. Run tests
+
+```bash
+python -m unittest discover tests
+```
+
+### 5. Run locally
 
 ```bash
 python run.py
@@ -82,6 +88,8 @@ Server starts at `http://localhost:5000`.
 | `FORAGER_ACCOUNT_ID` | ✅ | From Forager dashboard → Settings → API |
 | `HUBSPOT_ACCESS_TOKEN` | ✅ | HubSpot Private App token |
 | `HUBSPOT_PORTAL_ID` | ✅ | Your HubSpot portal/account ID |
+| `HUBSPOT_APP_ID` | optional | App ID for webhook subscription script |
+| `HUBSPOT_CLIENT_SECRET` | optional | App client secret for `X-HubSpot-Signature-v3` HMAC verification |
 | `SECRET_KEY` | ✅ | Flask secret key (any random string) |
 | `DEFAULT_JOB_TITLES` | optional | Comma-separated titles for contact discovery |
 | `MAX_CONTACTS_PER_COMPANY` | optional | Cap on discovered contacts (default: 5) |

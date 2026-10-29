@@ -28,6 +28,11 @@ import os
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ── Load .env ─────────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
@@ -105,10 +110,13 @@ def print_contacts(contacts_result: dict) -> None:
     print(f"  Created:    {contacts_result.get('created', 0)}")
     print()
     for i, c in enumerate(contacts, 1):
+        loc_parts = [p for p in (c.get("city"), c.get("state"), c.get("country")) if p]
+        location_str = ", ".join(loc_parts) if loc_parts else "—"
         print(f"  [{i}] {c.get('name') or 'Unknown'}")
         print(f"       Title:     {c.get('title') or '—'}")
         print(f"       Email:     {c.get('email') or '—'}")
         print(f"       Phone:     {c.get('phone') or '—'}")
+        print(f"       Location:  {location_str}")
         print(f"       LinkedIn:  {c.get('linkedin') or '—'}")
         print(f"       HubSpot:   {c.get('hubspot_id') or '—'}")
         print()
